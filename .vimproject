@@ -1,0 +1,34 @@
+
+rbbt-GE=/$PWD filter="*.rb *.R *.txt Rakefile" {
+ test_helper.rb
+ Rakefile
+ bin=bin {
+ }
+ data=data {
+ }
+ lib=lib {
+  rbbt=rbbt {
+   GE.rb
+   GE=GE {
+    GEO.rb
+   }
+  }
+ }
+ share=share {
+  lib=lib {
+   R=R {
+    MA.R
+   }
+  }
+ }
+ test=test {
+  test_helper.rb
+  rbbt=rbbt {
+   GE=GE {
+    test_GEO.rb
+   }
+  }
+ }
+ tmp=tmp {
+ }
+}
