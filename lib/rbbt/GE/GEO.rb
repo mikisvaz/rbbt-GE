@@ -161,40 +161,28 @@ module GEO
   end
 
   #{{{ Processing
-  
-  def self.r_format(list)
-    case
-    when list.nil?
-      "NULL"
-    when Array === list
-      "c(#{list.collect{|e| r_format e} * ", "})"
-    when (String === list and list === list.to_i.to_s) 
-      list.to_i
-    when (String === list and list === list.to_f.to_s) 
-      list.to_f
-    when TrueClass === list
-      "TRUE"
-    when FalseClass === list
-      "FALSE"
-    else
-      "'#{list.to_s}'"
-    end
+  MAIN_CUES = []
+  def self.guess_main_group(subset)
+    groups = subset.keys
+    main   = groups.select{|v| MAIN_CUES.select{|c| v =~ c}.any?}.first
+    main   || groups.sort.first
   end
 
-  def self.analyze(datafile, main, contrast = nil, log2 = false)
-    datafile = GEO.GDS(datafile)[:data_file] unless File.exists? datafile
-    GE.run_R("rbbt.GE.process(#{ r_format datafile }, main = #{r_format(main)}, contrast = #{r_format(contrast)}, log2=#{ r_format log2 })")
-  end
-
-  def self.process(dataset, subset, main_group = nil)
+  def self.process_subset(dataset, subset, main_group = nil, outfile = nil)
     info       = GDS(dataset)
-    codes      = TSV.new(GPL(dataset)[:codefile], :extra => []).keys
+    codes      = TSV.new(GPL(info[:platform])[:code_file], :extra => []).keys
     main_group = guess_main_group(info[:subsets][subset]) if main_group.nil?
 
     main = info[:subsets][subset][main_group]
-    main = info[:subsets][subset][main_group]
+    other =  info[:subsets].values.collect{|v| v.values}.flatten - main
 
-    analyze(info[:datafile], codes, info[:channel_count], info[:value_type], info[:subsets][subset], main) 
+    outfile ||= File.join(File.dirname(info[:data_file]), 'analyses', "subset.#{ subset }.#{main_group}")
+
+    if not File.exists? outfile
+      key_field = TSV.headers(GEO.GPL(info[:platform])[:code_file]).first
+      GE.analyze(info[:data_file], main, other, !info[:value_type].match('log').nil?, outfile, key_field) 
+    end
+
+    TSV.new(outfile, :unique => true, :cast => proc{|e| e.nil? or e == "NA" ? nil : e.to_f})
   end
-
 end

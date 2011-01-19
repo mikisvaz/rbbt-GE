@@ -22,12 +22,46 @@ class TestClass < Test::Unit::TestCase
     assert_equal id, translated
   end
 
-  def test_analyze
+  def _test_analyze_single
     dataset = 'GDS750'
     info = GEO.GDS(dataset)
 
-    p  info[:subsets]["agent"]["tunicamycin"]
-    puts GEO.analyze(dataset, info[:subsets]["agent"]["tunicamycin"] ).read;
+    assert GEO.analyze(dataset, info[:subsets]["agent"]["tunicamycin"] ).read =~ /1234/;
+  end
+
+  def _test_analyze_contrast
+    dataset = 'GDS750'
+    info = GEO.GDS(dataset)
+    outfile = File.join(File.dirname(info[:data_file]), 'results')
+    key_field = TSV.headers(GEO.GPL(info[:platform])[:code_file]).first
+
+    TmpFile.with_file do |f|
+      GEO.analyze(dataset, info[:subsets]["agent"]["tunicamycin"], info[:subsets]["agent"]["DTT"], false, f, key_field);
+      assert File.exists? f
+      FileUtils.rm f
+    end
+  end
+
+  def test_process_subset
+    dataset = 'GDS750'
+    subset  = 'agent'
+    id      = "6079"
+    info = GEO.GDS(dataset)
+    outfile = File.join(File.dirname(info[:data_file]), 'results')
+    key_field = TSV.headers(GEO.GPL(info[:platform])[:code_file]).first
+
+    TmpFile.with_file do |f|
+      GEO.process_subset(dataset, subset, nil, f)
+      assert File.exists? f
+      FileUtils.rm f
+    end
+
+    t = GEO.process_subset(dataset, subset, 'tunicamycin')
+    assert File.exists? File.join(File.dirname(info[:data_file]), 'analyses/subset.agent.tunicamycin')
+    d = GEO.process_subset(dataset, subset, 'DTT')
+    assert File.exists? File.join(File.dirname(info[:data_file]), 'analyses/subset.agent.DTT')
+
+    assert_in_delta t[id]["p.values"], - d[id]["p.values"], 0.0001
   end
 end
 

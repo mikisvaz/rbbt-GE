@@ -1,20 +1,64 @@
 library(limma)
 
-print("Loading MA");
 #########################################################################
 # Model processing 
 
 # Ratio
-rbbt.GE.process.ratio.oneside <- function(main){
-    return(apply(main, 1 ,function(x){mean(x, na.rm = TRUE)}));
+rbbt.GE.process.ratio.oneside <- function(expr){
+    ratio = apply(expr, 1 ,function(x){mean(x, na.rm = TRUE)})
+    names(ratio) <- rownames(expr);
+    return(ratio);
 }
 
-rbbt.GE.process.ratio.twoside <- function(main, contrast){
-   return (rbbt.GE.process.ratio.oneside(main) - rbbt.GE.process.ratio.oneside(contrast));
+rbbt.GE.process.ratio.twoside <- function(expr, contrast){
+    ratio = rbbt.GE.process.ratio.oneside(expr) - rbbt.GE.process.ratio.oneside(contrast)
+    names(ratio) <- rownames(expr);
+    return(ratio);
 }
 
-rbbt.GE.process <- function(file, main, contrast = NULL, log2 = FALSE){
+# Limma
+rbbt.GE.process.limma.oneside <- function(expr, subset = NULL){
+
+    if (is.null(subset)){
+        fit <- lmFit(expr);
+    }else{
+        design = rep(0, dim(expr)[2]);
+        design[names(expr) %in% subset] = 1;
+    }
+
+    fit <- lmFit(expr, design);
+
+    fit <- eBayes(fit);
+
+    sign = fit$t < 0;
+    sign[is.na(sign)] = FALSE;
+    fit$p.value[sign] =  - fit$p.value[sign];
+
+    return(list(t= fit$t, p.values= fit$p.value));
+}
+
+rbbt.GE.process.limma.twoside <- function(expr, subset.main, subset.contrast){
+
+    design = cbind(rep(1,dim(expr)[2]), rep(0,dim(expr)[2]));
+    colnames(design) <-c('intercept', 'expr');
+    design[names(expr) %in% subset.main,]     = 1;
+    design[names(expr) %in% subset.contrast,'intercept']     = 1;
+    
+    fit <- lmFit(expr, design);
+
+    fit <- eBayes(fit);
+    sign = fit$t[,2] < 0;
+    sign[is.na(sign)] = FALSE;
+    fit$p.value[sign,2] = - fit$p.value[sign,2];
+
+    return(list(t= fit$t[,2], p.values= fit$p.value[,2]));
+}
+
+
+
+rbbt.GE.process <- function(file, main, contrast = NULL, log2 = FALSE, outfile = NULL, key.field = NULL){
     data = rbbt.tsv(file);
+    ids = rownames(data);
     if (log2){
        data = log2(data);
     }
@@ -25,8 +69,52 @@ rbbt.GE.process <- function(file, main, contrast = NULL, log2 = FALSE){
       ratio = rbbt.GE.process.ratio.twoside(subset(data, select=main), subset(data, select=contrast) ); 
     }
 
-   return(ratio);
+    if (is.null(contrast)){
+        limma = NULL;
+        tryCatch({ 
+            limma = rbbt.GE.process.limma.oneside(data, main); 
+        }, error=function(x){
+            cat("Limma failed for complete dataset. Trying just subset.\n", file=stderr());
+            print(x, file=stderr());
+            tryCatch({ 
+                limma = rbbt.GE.process.limma.oneside(subset(data, select=main)); 
+            }, error=function(x){
+                cat("Limma failed for subset dataset.\n", file=stderr());
+                print(x, file=stderr());
+            });
+         })
+    }else{
+        limma = NULL;
+        tryCatch({ 
+            limma = rbbt.GE.process.limma.twoside(data, main, contrast); 
+        }, error=function(x){
+            cat("Limma failed for complete dataset. Trying just subset.\n", file=stderr());
+            print(x, file=stderr());
+            tryCatch({ 
+                limma = rbbt.GE.process.limma.twoside(subset(data, select=c(main, contrast)), main, contrast); 
+            }, error=function(x){
+                cat("Limma failed for subset dataset.\n", file=stderr());
+                print(x, file=stderr());
+            });
+         })
+
+    }
+
+    if (! is.null(limma)){
+       result = data.frame(ratio = ratio[ids], t.values = limma$t[ids], p.values = limma$p.values[ids])
+    }else{
+       result = data.frame(ratio = ratio)
+    }
+
+   if (is.null(outfile)){
+       return(result);
+   }else{
+       rbbt.tsv.write(outfile, result, key.field);
+       return(NULL);
+   }
 }
+
+
 
 ############################################################################
 ############################################################################
