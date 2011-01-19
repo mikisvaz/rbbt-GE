@@ -1,4 +1,3 @@
-
 rbbt-GE=/$PWD filter="*.rb *.R *.txt Rakefile" {
  test_helper.rb
  Rakefile
@@ -15,10 +14,8 @@ rbbt-GE=/$PWD filter="*.rb *.R *.txt Rakefile" {
   }
  }
  share=share {
-  lib=lib {
-   R=R {
-    MA.R
-   }
+  Rlib=lib/R {
+   MA.R
   }
  }
  test=test {

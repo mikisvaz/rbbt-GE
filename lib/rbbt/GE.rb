@@ -1,5 +1,5 @@
 require 'rbbt/util/pkg_config'
-require 'rbbt/R/main'
+require 'rbbt/util/R'
 
 module GE
   extend PKGConfig
@@ -34,9 +34,8 @@ module GE
   end
 
   def self.analyze(datafile,  main, contrast = nil, log2 = false, outfile = nil, key_field = nil)
-    FileUtils.mkdir_p File.dirname(outfile) unless File.exists? File.dirname(outfile)
+    FileUtils.mkdir_p File.dirname(outfile) unless outfile.nil? or File.exists? File.dirname(outfile)
     GE.run_R("rbbt.GE.process(#{ r_format datafile }, main = #{r_format(main)}, contrast = #{r_format(contrast)}, log2=#{ r_format log2 }, outfile = #{r_format outfile}, key.field = #{r_format key_field})")
   end
-
 end
 
