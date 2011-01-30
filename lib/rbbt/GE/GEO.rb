@@ -183,6 +183,6 @@ module GEO
       GE.analyze(info[:data_file], main, other, !info[:value_type].match('log').nil?, outfile, key_field) 
     end
 
-    TSV.new(outfile, :unique => true, :cast => proc{|e| e.nil? or e == "NA" ? nil : e.to_f})
+    TSV.new(outfile, :flat, :cast => proc{|e| e.nil? or e == "NA" ? nil : e.to_f})
   end
 end
