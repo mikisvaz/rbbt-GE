@@ -2,16 +2,18 @@ require File.join(File.expand_path(File.dirname(__FILE__)), '../..', 'test_helpe
 require 'rbbt/GE/GEO'
 
 class TestClass < Test::Unit::TestCase
+
   def test_GDS
-    assert_equal 'GPL999', GEO.GDS('GDS750')[:platform]
+    assert_equal 'GPL999', GEO.dataset_info('GDS750')[:platform]
   end
 
-  def test_GPL
-    assert_equal 'Saccharomyces cerevisiae', GEO.GPL('GPL999')[:organism]
-    assert TSV.new(GEO.GPL('GPL999')[:code_file]).fields.include? "Ensembl Gene ID"
+  def _test_GPL
+    assert_equal 'Saccharomyces cerevisiae', GEO["GPL999/info.yaml"].yaml[:organism]
+    assert_equal 'Homo sapiens', GEO["GPL570/info.yaml"].yaml[:organism]
+    assert GEO.GPL999.codes.fields.include? "Ensembl Gene ID"
   end
 
-  def test_normalize
+  def _test_normalize
     dataset = 'GDS750'
     gene    = "YPR191W"
     id      = "6079"
@@ -22,14 +24,14 @@ class TestClass < Test::Unit::TestCase
     assert_equal id, translated
   end
 
-  def test_analyze_single
+  def _test_analyze_single
     dataset = 'GDS750'
     info = GEO.GDS(dataset)
 
     assert GE.analyze(info[:data_file], info[:subsets]["agent"]["tunicamycin"] ).read =~ /1234/;
   end
 
-  def test_analyze_contrast
+  def _test_analyze_contrast
     dataset = 'GDS750'
     info = GEO.GDS(dataset)
     outfile = File.join(File.dirname(info[:data_file]), 'results')
@@ -42,7 +44,7 @@ class TestClass < Test::Unit::TestCase
     end
   end
 
-  def test_process_subset
+  def _test_process_subset
     dataset = 'GDS750'
     subset  = 'agent'
     id      = "6079"
@@ -63,5 +65,22 @@ class TestClass < Test::Unit::TestCase
 
     assert_in_delta t[id]["p.values"], - d[id]["p.values"], 0.0001
   end
+
+  def _test_GSE
+    gse="GSE966"
+    info = GEO.GSE(gse)
+    assert_equal "GPL764", info[:platform]
+  end
+
+
+  #{{{ NEW TEST
+
+  def _test_GSE
+    gse="GSE966"
+    info = GEO.GSE(gse)
+    assert_equal "GPL764", info[:platform]
+  end
+
+
 end
 

@@ -1,188 +1,253 @@
 require 'rbbt-util'
 require 'rbbt/GE'
 require 'rbbt/sources/organism'
+require 'rbbt/util/resource'
 require 'yaml'
 
 module GEO
-  GDS_URL="ftp://ftp.ncbi.nih.gov/pub/geo/DATA/SOFT/GDS_full/#DATASET#_full.soft.gz"
-  GPL_URL="ftp://ftp.ncbi.nih.gov/pub/geo/DATA/SOFT/by_platform/#PLATFORM#/#PLATFORM#_family.soft.gz"
+  extend Resource
+  data_module self
 
-  DATA_STORE=File.join(GE.datadir, 'GEO')
-
-
-  LIB_DIR = File.join(File.expand_path(File.dirname(__FILE__)),'../../../share/lib/R')
-  MA_R    = File.join(LIB_DIR, 'MA.R')
-
-  def self.GDS_parse_header(header)
-    subsets = {}
-
-    header.split("^SUBSET")[1..-1].collect do |chunk|
-      description = chunk.match(/!subset_description\s*=\s*(.*)/i)[1]
-      samples     = chunk.match(/!subset_sample_id\s*=\s*(.*)/i)[1].split(/,/).collect{|e| e.strip}
-      type        = chunk.match(/!subset_type\s*=\s*(.*)/i)[1]
-
-
-      subsets[type] ||= {}
-      subsets[type][description] ||= {}
-      subsets[type][description] = samples
-    end
-
-
-    { :value_type => header.match(/!dataset_value_type\s*=\s*(.*)/i)[1],
-      :channel_count => header.match(/!dataset_channel_count\s*=\s*(.*)/i)[1],
-      :platform => header.match(/!dataset_platform\s*=\s*(.*)/i)[1],
-      :reference_series => header.match(/!dataset_reference_series\s*=\s*(.*)/i)[1],
-      :description => header.match(/!dataset_description\s*=\s*(.*)/i)[1],
-      :subsets => subsets}
+  def self.platform_info(platform)
+    YAML.load(self[platform]['info.yaml'].produce.read)
   end
 
-  def self.GDS(dataset, platform = nil)
-
-    if platform.nil? or not File.exists? File.join(DATA_STORE, platform, dataset, 'info.yaml')
-      gds = Open.open(GDS_URL.sub('#DATASET#', dataset))
-      header = ""
-
-      while line = gds.readline
-        break if line =~ /\!dataset_table_begin/i
-        raise "No dataset table found" if gds.eof
-        header << line
-      end
-
-      info = GDS_parse_header header
-
-      platform = info[:platform]
-
-      directory = File.join(DATA_STORE, platform, dataset)
-      data_file = File.join(directory, 'data') 
-      info_file = File.join(directory, 'info.yaml') 
-
-      info[:data_file]      = data_file
-      info[:data_directory] = directory
-
-      FileUtils.mkdir_p directory unless File.exists? directory
-      Open.write(info_file, info.to_yaml)
-    else
-      directory = File.join(DATA_STORE, platform, dataset)
-      data_file = File.join(directory, 'data') 
-      info_file = File.join(directory, 'info.yaml') 
-
-      info = YAML.load(Open.read(info_file)) 
-    end
-
-    if not File.exists? data_file
-
-      values = TSV.new gds, :fix => proc{|l| l =~ /^!dataset_table_end/i ? nil : l.gsub(/null/,'NA').gsub(/\t(?:-|.)?(\t|$)/,"\tNA\1")}, :header_hash => ""
-
-      good_fields = values.fields.select{|f| f =~ /^GSM/}
-      values = values.slice good_fields
-
-      platform_codes = TSV.key_order(GEO.GPL(info[:platform])[:code_file])
-      Open.write(data_file, values.to_s(platform_codes))
-    end
-
-    info
+  def self.dataset_info(dataset)
+    YAML.load(self[dataset]['info.yaml'].produce.read)
   end
 
-  def self.GPL_parse_header(header)
-    {:organism => header.match(/!Platform_organism\s*=\s*(.*)/i)[1],
-      :count => header.match(/!Platform_data_row_count\s*=\s*(.*)/i)[1]}
-  end
+  module SOFT
 
-  def self.guess_id(organism, codes)
-    field_counts = {}
+    GDS_URL="ftp://ftp.ncbi.nih.gov/pub/geo/DATA/SOFT/GDS_full/#DATASET#_full.soft.gz"
+    GPL_URL="ftp://ftp.ncbi.nih.gov/pub/geo/DATA/SOFT/by_platform/#PLATFORM#/#PLATFORM#_family.soft.gz"
+    GSE_URL="ftp://ftp.ncbi.nih.gov/pub/geo/DATA/SOFT/by_series/#SERIES#/#SERIES#_family.soft.gz"
 
-    new_fields = codes.fields.collect do |field|
-      values = codes.slice(field).values.flatten.uniq
+    GSE_INFO = {
+      :title         => "!Series_title",
+      :channel_count => "!Sample_channel_count",
+      :value_type    => "!Series_value_type",
+      :platform      => "!Series_platform_id",
+      :description   => "!Series_summary*",      # Join with \n 
+    }
+    
+    GDS_INFO = {
+      :DELIMITER        => "\\^SUBSET",
+      :value_type       => "!dataset_value_type",
+      :channel_count    => "!dataset_channel_count",
+      :platform         => "!dataset_platform",
+      :reference_series => "!dataset_reference_series",
+      :description      => "!dataset_description",
+    }
 
-      best = Organism.guess_id(organism, values)
-      if best[1].length > values.length.to_f * 0.5 
-        field_counts[best.first] = best.last.length
-        best.first
+    GDS_SUBSET_INFO = {
+      :DELIMITER        => "!subset_.*|!dataset_value_type",
+      :description => "!subset_description",
+      :samples     => "!subset_sample_id*",
+      :type        => "!subset_type",
+    }
+
+    GPL_INFO = { 
+      :DELIMITER     => "!platform_table_begin",
+      :organism      => "!Platform_organism",
+      :count         => "!Platform_data_row_count"
+    }
+
+    # When multiple matches select most common, unless join is choosen
+    def self.find_field(header, field, join = false)
+      md = header.match(/#{ Regexp.quote field }\s*=\s*(.*)/i)
+      return nil if md.nil? or md.captures.empty?
+
+      case join
+      when false, nil
+        counts = Hash.new(0)
+        md.captures.sort_by{|v| counts[v] += 1}.first
+      when true
+        md.captures * "\n"
       else
-        "UNKNOWN:" << field
+        md.captures * join
       end
     end
 
-    values = codes.keys.uniq
-    best = Organism.guess_id(organism, values)
-    if best[1].length > values.length.to_f * 0.5 
-      field_counts[best.first] = best.last.length
-      new_key_field = best.first
-    else
-      new_key_field = nil
+    def self.get_info(header, info)
+      result = {}
+
+      info.each do |key, field|
+        next if key == :DELIMITER
+        if field =~ /(.*)\*(.*)(\*)?$/
+          value = find_field(header, $1, $2.empty? ? true : $2)
+          value = value.to_i.to_s == value ? value.to_i : value
+          if $3
+            result[key] = value.split(',')
+          else
+            result[key] = value
+          end
+        else
+          value = find_field(header, field, false)
+          value = value.to_i.to_s == value ? value.to_i : value
+          result[key] = value
+        end
+      end
+
+      if result.empty?
+        nil
+      else
+        result
+      end
     end
 
-    [new_key_field, new_fields, field_counts.sort_by{|field,counts| counts}.collect{|field,counts| field}.last]
-  end
+    def self.parse_header(stream, info)
+      header = ""
+      while line = stream.readline
+        header << line
+        break if line =~ /^#{info[:DELIMITER]}/i
+        raise "Delimiter not found" if stream.eof
+      end
 
-  def self.GPL(platform)
-    directory = File.join(DATA_STORE, platform)
-    code_file = File.join(directory, 'codes') 
-    info_file = File.join(directory, 'info.yaml') 
+      get_info(header, info)
+    end
 
-    if File.exists?(info_file) and File.exists?(code_file)
-      YAML.load(Open.read(info_file))
-    else
+    def self.guess_id(organism, codes, max = 5000)
+      field_counts = {}
+
+      num_keys = codes.keys.length
+      max = num_keys if num_keys < max
+      identifiers = Organism.identifiers(organism).tsv
+      new_fields = codes.fields.collect do |field|
+        values = codes.slice(field).values.flatten[0..max].uniq.compact
+
+        best = Organism.guess_id(organism, values, identifiers)
+        if best[1].length > values.length.to_f * 0.5 
+          field_counts[best.first] = best.last.length
+          best.first
+        else
+          "UNKNOWN: " << field
+        end
+      end
+
+      best = Organism.guess_id(organism, values, identifiers)
+      if best[1].length > max * 0.5 
+        field_counts[best.first] = best.last.length
+        new_key_field = best.first
+      else
+        new_key_field = nil
+      end
+
+      [new_key_field, new_fields, field_counts.sort_by{|field,counts| counts}.collect{|field,counts| field}.last]
+    end
+
+    def self.guess_id(organism, codes)
+      num_codes = codes.size
+      best = nil
+      best_count = 0
+      new_fields = []
+      field_counts = {}
+      TmpFile.with_file(codes.to_s) do |codefile|
+
+        codes.all_fields.each_with_index do |field,i|
+          TmpFile.with_file do |values|
+            Open.write(values, CMD.cmd("cat #{ codefile }|cut -f #{ i + 1 }| tr '|' '\\n'|grep [[:alpha:]]|sort -u").read)
+
+            new_field, count =  Organism.guess_id(organism, values) 
+            field_counts[new_field] = count
+            Log.debug "Original field: #{ field }. New: #{new_field}. Count: #{ count }/#{num_codes}"
+            new_fields << (count > (num_codes > 20000 ? 20000 : num_codes).to_f * 0.5 ? new_field : "UNKNOWN(#{ field })")
+            if count > best_count
+              best = new_field
+              best_count = count
+            end
+          end
+        end
+
+      end
+
+      field_counts.delete(new_fields.first)
+      [best, new_fields, field_counts.sort_by{|field, counts| counts}.collect{|field, counts| field}]
+    end
+
+    #{{{ GPL
+
+    def self.GPL(platform, directory)
       FileUtils.mkdir_p directory unless File.exists? directory
 
-      gpl = Open.open(GPL_URL.gsub('#PLATFORM#', platform))
+      code_file = File.join(directory, 'codes') 
+      info_file = File.join(directory, 'info.yaml') 
 
-      header = ""
-      while line = gpl.readline
-        p line
-        break if line =~ /\!platform_table_begin/i
-        raise "No platform table found" if gpl.eof
-        header << line
-      end
+      stream = Open.open(GPL_URL.gsub('#PLATFORM#', platform), :nocache => false)
 
-      info = GPL_parse_header header
-      info[:code_file] = code_file
+      info = parse_header(stream, GPL_INFO)
+      info[:code_file]      = code_file
       info[:data_directory] = directory
 
-      Log.low "Producing code file for #{ platform }"
+      Log.medium "Producing code file for #{ platform }"
+      codes = TSV.new stream, :fix => proc{|l| l =~ /^!platform_table_end/i ? nil : l}, :header_hash => ""
+      Log.low "Original fields: #{codes.key_field} - #{codes.fields * ", "}"
+      stream.force_close
 
-      codes = TSV.new gpl, :fix => proc{|l| l =~ /^!platform_table_end/i ? nil : l}, :header_hash => ""
-      Log.debug "Original fields: #{codes.key_field} - #{codes.fields * ", "}"
+      best_field, all_new_fields, order = guess_id(Organism.organism(info[:organism]), codes)
 
-      new_key_field, new_fields, best_field = GEO.guess_id(Organism.organism(info[:organism]), codes) 
-      codes.key_field = new_key_field.dup if new_key_field
+      new_key_field, *new_fields = all_new_fields
+
+      new_key_field = codes.key_field if new_key_field =~ /^UNKNOWN/
+
+      codes.key_field = new_key_field.dup 
       codes.fields = new_fields.collect{|f| f.dup}
-      Log.debug "New fields: #{codes.key_field} - #{codes.fields * ", "}"
 
-      Open.write(code_file, codes.to_s)
+      Log.low "New fields: #{codes.key_field} - #{codes.fields * ", "}"
+
+      Open.write(code_file, codes.reorder(:key, order).to_s(:sort, true))
+      Open.write(info_file, info.to_yaml)
+
+      info
+    end
+
+    def self.dataset_subsets(stream)
+      text = ""
+      while not (line = stream.gets) =~ /!dataset_table_begin/
+        text << line
+      end
+
+      subsets = text.split(/\^SUBSET/).collect do |chunk|
+        get_info(chunk, GDS_SUBSET_INFO)
+      end
+
+      info = {}
+      subsets.each do |subset|
+        type = subset[:type]
+        description = subset[:description]
+        samples = subset[:samples]
+        info[type] ||= {}
+        info[type][description] = samples
+      end
+
+      info
+    end
+
+    def self.GDS(dataset, directory)
+      FileUtils.mkdir_p directory unless File.exists? directory
+
+      value_file = File.join(directory, 'values') 
+      info_file = File.join(directory, 'info.yaml') 
+
+      stream = Open.open(GDS_URL.gsub('#DATASET#', dataset), :nocache => true)
+
+      info = parse_header(stream, GDS_INFO)
+      info[:value_file]      = value_file
+      info[:data_directory] = directory
+
+      info[:subsets] = dataset_subsets(stream)
+
+      Log.medium "Producing values file for #{ dataset }"
+      values = TSV.new stream, :fix => proc{|l| l =~ /^!dataset_table_end/i ? nil : l.gsub(/null/,'NA').gsub(/\t(?:-|.)?(\t|$)/,"\tNA\1")}, :header_hash => ""
+      key_field, *ignore = TSV.parse_header(GEO[info[:platform]]['codes'].open)
+      values.key_field = key_field
+
+      samples = values.fields.select{|f| f =~ /GSM/}
+
+      Open.write(value_file, values.slice(samples).to_s(:sort, true))
       Open.write(info_file, info.to_yaml)
 
       info
     end
   end
-
-  def self.normalize(platform, genes, persistence = false)
-    TSV.index(GEO.GPL(platform)[:code_file], :persistence => persistence).values_at *genes
-  end
-
-  #{{{ Processing
-  MAIN_CUES = []
-  def self.guess_main_group(subset)
-    groups = subset.keys
-    main   = groups.select{|v| MAIN_CUES.select{|c| v =~ c}.any?}.first
-    main   || groups.sort.first
-  end
-
-  def self.process_subset(dataset, subset, main_group = nil, outfile = nil)
-    info       = GDS(dataset)
-    codes      = TSV.new(GPL(info[:platform])[:code_file], :extra => []).keys
-    main_group = guess_main_group(info[:subsets][subset]) if main_group.nil?
-
-    main = info[:subsets][subset][main_group]
-    other =  info[:subsets].values.collect{|v| v.values}.flatten - main
-
-    outfile ||= File.join(File.dirname(info[:data_file]), 'analyses', "subset.#{ subset }.#{main_group}")
-
-    if not File.exists? outfile
-      key_field = TSV.headers(GEO.GPL(info[:platform])[:code_file]).first
-      GE.analyze(info[:data_file], main, other, !info[:value_type].match('log').nil?, outfile, key_field) 
-    end
-
-    TSV.new(outfile, :flat, :cast => proc{|e| e.nil? or e == "NA" ? nil : e.to_f})
-  end
 end
+

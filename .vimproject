@@ -10,10 +10,16 @@ rbbt-GE=/$PWD filter="*.rb *.R *.txt Rakefile" {
    GE.rb
    GE=GE {
     GEO.rb
+    GEO2.rb
    }
   }
  }
  share=share {
+  install=install{
+   GEO=GEO{
+    Rakefile
+   }
+  }
   Rlib=lib/R {
    MA.R
   }
