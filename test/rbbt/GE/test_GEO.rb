@@ -3,11 +3,15 @@ require 'rbbt/GE/GEO'
 
 class TestClass < Test::Unit::TestCase
 
+  def test_control_sample
+    assert GEO.control_samples('GDS750').include? "GSM16978"
+  end
+
   def test_GDS
     assert_equal 'GPL999', GEO.dataset_info('GDS750')[:platform]
   end
 
-  def _test_GPL
+  def test_GPL
     assert_equal 'Saccharomyces cerevisiae', GEO["GPL999/info.yaml"].yaml[:organism]
     assert_equal 'Homo sapiens', GEO["GPL570/info.yaml"].yaml[:organism]
     assert GEO.GPL999.codes.fields.include? "Ensembl Gene ID"

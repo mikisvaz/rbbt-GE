@@ -10,7 +10,7 @@ begin
     gem.email = "miguel.vazquez@cnio.es"
     gem.homepage = "http://github.com/mikisvaz/rbbt-GE"
     gem.authors = ["Miguel Vazquez"]
-    gem.files = Dir['lib/**/*.rb', 'share/**/*.R', 'LICENSE']
+    gem.files = Dir['lib/**/*.rb', 'share/**/*.R', 'share/**/Rakefile', 'LICENSE']
     gem.test_files = Dir['test/**/test_*.rb']
 
     

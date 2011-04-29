@@ -16,9 +16,27 @@ module GEO
     YAML.load(self[dataset]['info.yaml'].produce.read)
   end
 
+  def self.is_control?(value, info)
+    value.to_s.downcase =~ /\bcontrol\b/ or
+    value.to_s.downcase =~ /\bwild/ or
+    value.to_s.downcase =~ /\bnone\b/ 
+  end
+
+  def self.control_samples(dataset)
+    info = dataset_info(dataset)
+    subsets = info[:subsets]
+
+    control_samples = []
+    subsets.each do |type, values|
+      control_samples.concat values.select{|value,samples| is_control? value, info}.collect{|value,samples| samples.split(",")}.flatten 
+    end
+
+    control_samples
+  end
+
   module SOFT
 
-    GDS_URL="ftp://ftp.ncbi.nih.gov/pub/geo/DATA/SOFT/GDS_full/#DATASET#_full.soft.gz"
+    GDS_URL="ftp://ftp.ncbi.nih.gov/pub/geo/DATA/SOFT/GDS/#DATASET#.soft.gz"
     GPL_URL="ftp://ftp.ncbi.nih.gov/pub/geo/DATA/SOFT/by_platform/#PLATFORM#/#PLATFORM#_family.soft.gz"
     GSE_URL="ftp://ftp.ncbi.nih.gov/pub/geo/DATA/SOFT/by_series/#SERIES#/#SERIES#_family.soft.gz"
 
@@ -237,7 +255,7 @@ module GEO
       info[:subsets] = dataset_subsets(stream)
 
       Log.medium "Producing values file for #{ dataset }"
-      values = TSV.new stream, :fix => proc{|l| l =~ /^!dataset_table_end/i ? nil : l.gsub(/null/,'NA').gsub(/\t(?:-|.)?(\t|$)/,"\tNA\1")}, :header_hash => ""
+      values = TSV.new stream, :fix => proc{|l| l =~ /^!dataset_table_end/i ? nil : l.gsub(/null/,'NA')}, :header_hash => ""
       key_field, *ignore = TSV.parse_header(GEO[info[:platform]]['codes'].open)
       values.key_field = key_field
 
@@ -250,4 +268,3 @@ module GEO
     end
   end
 end
-

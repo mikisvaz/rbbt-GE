@@ -3,7 +3,7 @@ rbbt-GE=/$PWD filter="*.rb *.R *.txt Rakefile" {
  Rakefile
  bin=bin {
  }
- data=data {
+data=data {
  }
  lib=lib {
   rbbt=rbbt {
