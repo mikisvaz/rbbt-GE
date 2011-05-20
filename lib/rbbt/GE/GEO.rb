@@ -118,7 +118,7 @@ module GEO
       while line = stream.readline
         header << line
         break if line =~ /^#{info[:DELIMITER]}/i
-        raise "Delimiter not found" if stream.eof
+        raise "Delimiter not found" if stream.eof?
       end
 
       get_info(header, info)
@@ -190,7 +190,7 @@ module GEO
       code_file = File.join(directory, 'codes') 
       info_file = File.join(directory, 'info.yaml') 
 
-      stream = Open.open(GPL_URL.gsub('#PLATFORM#', platform), :nocache => false)
+      stream = Open.open(GPL_URL.gsub('#PLATFORM#', platform), :nocache => true, :pipe => true)
 
       info = parse_header(stream, GPL_INFO)
       info[:code_file]      = code_file
