@@ -1,16 +1,11 @@
 rbbt-GE=/$PWD filter="*.rb *.R *.txt Rakefile" {
  test_helper.rb
  Rakefile
- bin=bin {
- }
-data=data {
- }
  lib=lib {
   rbbt=rbbt {
    GE.rb
    GE=GE {
     GEO.rb
-    GEO2.rb
    }
   }
  }

@@ -1,12 +1,14 @@
 require 'rbbt-util'
 require 'rbbt/GE'
 require 'rbbt/sources/organism'
-require 'rbbt/util/resource'
+require 'rbbt/resource'
 require 'yaml'
 
 module GEO
   extend Resource
-  data_module self
+  self.pkgdir = "geo"
+
+  GEO.claim GEO.root.find, :rake, Rbbt.share.install.GEO.Rakefile.find(:lib)
 
   def self.platform_info(platform)
     YAML.load(self[platform]['info.yaml'].produce.read)
@@ -197,7 +199,7 @@ module GEO
       info[:data_directory] = directory
 
       Log.medium "Producing code file for #{ platform }"
-      codes = TSV.new stream, :fix => proc{|l| l =~ /^!platform_table_end/i ? nil : l}, :header_hash => ""
+      codes = TSV.open stream, :fix => proc{|l| l =~ /^!platform_table_end/i ? nil : l}, :header_hash => ""
       Log.low "Original fields: #{codes.key_field} - #{codes.fields * ", "}"
       stream.force_close
 
@@ -255,7 +257,7 @@ module GEO
       info[:subsets] = dataset_subsets(stream)
 
       Log.medium "Producing values file for #{ dataset }"
-      values = TSV.new stream, :fix => proc{|l| l =~ /^!dataset_table_end/i ? nil : l.gsub(/null/,'NA')}, :header_hash => ""
+      values = TSV.open stream, :fix => proc{|l| l =~ /^!dataset_table_end/i ? nil : l.gsub(/null/,'NA')}, :header_hash => ""
       key_field, *ignore = TSV.parse_header(GEO[info[:platform]]['codes'].open)
       values.key_field = key_field
 
