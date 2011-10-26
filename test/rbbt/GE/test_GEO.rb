@@ -17,7 +17,7 @@ class TestClass < Test::Unit::TestCase
     assert GEO.GPL999.codes.fields.include? "Ensembl Gene ID"
   end
 
-  def _test_normalize
+  def test_normalize
     dataset = 'GDS750'
     gene    = "YPR191W"
     id      = "6079"
@@ -28,14 +28,14 @@ class TestClass < Test::Unit::TestCase
     assert_equal id, translated
   end
 
-  def _test_analyze_single
+  def test_analyze_single
     dataset = 'GDS750'
     info = GEO.GDS(dataset)
 
     assert GE.analyze(info[:data_file], info[:subsets]["agent"]["tunicamycin"] ).read =~ /1234/;
   end
 
-  def _test_analyze_contrast
+  def test_analyze_contrast
     dataset = 'GDS750'
     info = GEO.GDS(dataset)
     outfile = File.join(File.dirname(info[:data_file]), 'results')
@@ -48,7 +48,7 @@ class TestClass < Test::Unit::TestCase
     end
   end
 
-  def _test_process_subset
+  def test_process_subset
     dataset = 'GDS750'
     subset  = 'agent'
     id      = "6079"
@@ -70,7 +70,7 @@ class TestClass < Test::Unit::TestCase
     assert_in_delta t[id]["p.values"], - d[id]["p.values"], 0.0001
   end
 
-  def _test_GSE
+  def test_GSE
     gse="GSE966"
     info = GEO.GSE(gse)
     assert_equal "GPL764", info[:platform]
@@ -79,10 +79,24 @@ class TestClass < Test::Unit::TestCase
 
   #{{{ NEW TEST
 
-  def _test_GSE
+  def test_GSE
     gse="GSE966"
     info = GEO.GSE(gse)
     assert_equal "GPL764", info[:platform]
+  end
+
+  def test_compare
+    dataset = "GDS1479"
+    field = "specimen"
+    condition = "carcinoma in situ lesion"
+    control = "normal mucosa"
+
+    TmpFile.with_file do |path|
+      GEO.compare(dataset, field, condition, control, path)
+      assert File.exists? path
+    end
+
+    assert GEO[dataset].comparison[GEO.comparison_name field, condition, control].produce.exists?
   end
 
 

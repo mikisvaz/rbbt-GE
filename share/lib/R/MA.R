@@ -59,6 +59,7 @@ rbbt.GE.process.limma.twoside <- function(expr, subset.main, subset.contrast){
 rbbt.GE.process <- function(file, main, contrast = NULL, log2 = FALSE, outfile = NULL, key.field = NULL){
     data = rbbt.tsv(file);
     ids = rownames(data);
+
     if (log2){
        data = log2(data);
     }
@@ -109,7 +110,7 @@ rbbt.GE.process <- function(file, main, contrast = NULL, log2 = FALSE, outfile =
    if (is.null(outfile)){
        return(result);
    }else{
-       rbbt.tsv.write(outfile, result, key.field);
+       rbbt.tsv.write(outfile, result, key.field, ":type=:list#:cast=:to_f");
        return(NULL);
    }
 }

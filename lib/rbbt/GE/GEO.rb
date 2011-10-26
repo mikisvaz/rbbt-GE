@@ -7,8 +7,23 @@ require 'yaml'
 module GEO
   extend Resource
   self.pkgdir = "geo"
+  self.subdir = "arrays"
 
-  GEO.claim GEO.root.find, :rake, Rbbt.share.install.GEO.Rakefile.find(:lib)
+  GEO.claim GEO.root.find(:user), :rake, Rbbt.share.install.GEO.Rakefile.find(:lib)
+
+  def self.comparison_name(field, condition, control)
+    condition = condition * " AND " if Array === condition
+    control = control * " AND " if Array === control
+    [[field, condition] * ": ", [field, control] * ": "] * " => "
+  end
+
+  def self.parse_comparison_name(name)
+    field1, condition1, field2, condition2 = name.match(/(.*): (.*?) => (.*?): (.*)/).values_at(1, 2, 3, 4)
+    condition1 = condition1.split(/ AND /) if condition1 =~ / AND /
+    condition2 = condition2.split(/ AND /) if condition2 =~ / AND /
+
+    [field1, condition1, field2, condition2]
+  end
 
   def self.platform_info(platform)
     YAML.load(self[platform]['info.yaml'].produce.read)
@@ -126,35 +141,6 @@ module GEO
       get_info(header, info)
     end
 
-    def self.guess_id(organism, codes, max = 5000)
-      field_counts = {}
-
-      num_keys = codes.keys.length
-      max = num_keys if num_keys < max
-      identifiers = Organism.identifiers(organism).tsv
-      new_fields = codes.fields.collect do |field|
-        values = codes.slice(field).values.flatten[0..max].uniq.compact
-
-        best = Organism.guess_id(organism, values, identifiers)
-        if best[1].length > values.length.to_f * 0.5 
-          field_counts[best.first] = best.last.length
-          best.first
-        else
-          "UNKNOWN: " << field
-        end
-      end
-
-      best = Organism.guess_id(organism, values, identifiers)
-      if best[1].length > max * 0.5 
-        field_counts[best.first] = best.last.length
-        new_key_field = best.first
-      else
-        new_key_field = nil
-      end
-
-      [new_key_field, new_fields, field_counts.sort_by{|field,counts| counts}.collect{|field,counts| field}.last]
-    end
-
     def self.guess_id(organism, codes)
       num_codes = codes.size
       best = nil
@@ -164,24 +150,23 @@ module GEO
       TmpFile.with_file(codes.to_s) do |codefile|
 
         codes.all_fields.each_with_index do |field,i|
-          TmpFile.with_file do |values|
-            Open.write(values, CMD.cmd("cat #{ codefile }|cut -f #{ i + 1 }| tr '|' '\\n'|grep [[:alpha:]]|sort -u").read)
+          values = CMD.cmd("cat #{ codefile }|cut -f #{ i + 1 }| tr '|' '\\n'|grep [[:alpha:]]|sort -u").read.split("\n").reject{|code| code.empty?}
 
-            new_field, count =  Organism.guess_id(organism, values) 
-            field_counts[new_field] = count
-            Log.debug "Original field: #{ field }. New: #{new_field}. Count: #{ count }/#{num_codes}"
-            new_fields << (count > (num_codes > 20000 ? 20000 : num_codes).to_f * 0.5 ? new_field : "UNKNOWN(#{ field })")
-            if count > best_count
-              best = new_field
-              best_count = count
-            end
+          new_field, count =  Organism.guess_id(organism, values)
+          field_counts[new_field] = count
+          Log.debug "Original field: #{ field }. New: #{new_field}. Count: #{ count }/#{num_codes}"
+          new_fields << (count > (num_codes > 20000 ? 20000 : num_codes).to_f * 0.5 ? new_field : "UNKNOWN(#{ field })")
+          if count > best_count
+            best = new_field
+            best_count = count
           end
+
         end
 
       end
 
       field_counts.delete(new_fields.first)
-      [best, new_fields, field_counts.sort_by{|field, counts| counts}.collect{|field, counts| field}]
+      [best, new_fields, field_counts.sort_by{|field, counts| counts}.collect{|field, counts| field}.compact]
     end
 
     #{{{ GPL
@@ -258,7 +243,7 @@ module GEO
 
       Log.medium "Producing values file for #{ dataset }"
       values = TSV.open stream, :fix => proc{|l| l =~ /^!dataset_table_end/i ? nil : l.gsub(/null/,'NA')}, :header_hash => ""
-      key_field, *ignore = TSV.parse_header(GEO[info[:platform]]['codes'].open)
+      key_field = TSV.parse_header(GEO[info[:platform]]['codes'].open).key_field
       values.key_field = key_field
 
       samples = values.fields.select{|f| f =~ /GSM/}
@@ -268,5 +253,31 @@ module GEO
 
       info
     end
+  end
+
+  def self.compare(dataset, field, condition, control, path)
+    dataset_info = GEO[dataset]["info.yaml"].yaml
+
+    platform = dataset_info[:platform]
+    platform_info = GEO[platform]["info.yaml"].yaml
+
+    log2       = ["count"].include? dataset_info[:value_type]
+    samples    = dataset_info[:subsets]
+    value_file = GEO[dataset].values.find.produce
+    format     = TSV.parse_header(GEO[platform].codes.open).key_field
+
+    if Array === condition
+      condition_samples = condition.collect{|cond| samples[field][cond].split ","}.flatten
+    else
+      condition_samples = samples[field][condition].split ","
+    end
+
+    if Array === control
+      control_samples = control.collect{|cond| samples[field][cond].split ","}.flatten
+    else
+      control_samples = samples[field][control].split ","
+    end
+
+    GE.analyze(value_file, condition_samples, control_samples, log2, path, format)
   end
 end

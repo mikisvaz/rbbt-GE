@@ -1,14 +1,24 @@
 
-rule /^(GPL\d+)\/?(codes|info\.yaml)?/ do |t|
+rule /^(GPL\d+)\/?(codes|info\.yaml)?$/ do |t|
   t.name =~ /^(GPL\d+)\/?(codes|info\.yaml)?/
   platform = $1
   file = $2
   GEO::SOFT.GPL(platform, file.nil? ? t.name : File.dirname(t.name))
 end
 
-rule /^(GDS\d+)\/?(values|info\.yaml)?/ do |t|
+rule /^(GDS\d+)\/?(values|info\.yaml)?$/ do |t|
   t.name =~ /^(GDS\d+)\/?(values|info\.yaml)?/
   dataset = $1
   file = $2
   GEO::SOFT.GDS(dataset, file.nil? ? t.name : File.dirname(t.name))
+end
+
+rule /^(GDS\d+)\/comparison\/(.*)$/ do |t|
+  t.name =~ /^(GDS\d+)\/comparison\/(.*)/
+  dataset = $1
+  name = $2
+
+  condition_field, condition_name, control_field, control_name = GEO.parse_comparison_name name
+
+  GEO.compare(dataset, condition_field, condition_name, control_name, t.name)
 end
