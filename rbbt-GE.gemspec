@@ -4,14 +4,14 @@
 # -*- encoding: utf-8 -*-
 
 Gem::Specification.new do |s|
-  s.name = %q{rbbt-GE}
-  s.version = "0.1.0"
+  s.name = "rbbt-GE"
+  s.version = "0.2.0"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Miguel Vazquez"]
-  s.date = %q{2012-01-19}
-  s.description = %q{Gene Expression in RBBT}
-  s.email = %q{miguel.vazquez@cnio.es}
+  s.date = "2012-01-31"
+  s.description = "Gene Expression in RBBT"
+  s.email = "miguel.vazquez@cnio.es"
   s.extra_rdoc_files = [
     "LICENSE"
   ]
@@ -22,10 +22,10 @@ Gem::Specification.new do |s|
     "share/install/GEO/Rakefile",
     "share/lib/R/MA.R"
   ]
-  s.homepage = %q{http://github.com/mikisvaz/rbbt-GE}
+  s.homepage = "http://github.com/mikisvaz/rbbt-GE"
   s.require_paths = ["lib"]
-  s.rubygems_version = %q{1.6.2}
-  s.summary = %q{Gene Expression in RBBT}
+  s.rubygems_version = "1.8.10"
+  s.summary = "Gene Expression in RBBT"
   s.test_files = ["test/test_helper.rb", "test/rbbt/GE/test_GEO.rb"]
 
   if s.respond_to? :specification_version then
