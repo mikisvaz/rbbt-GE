@@ -71,9 +71,9 @@ class TestClass < Test::Unit::TestCase
   end
 
   def test_GSE
-    gse="GSE966"
-    info = GEO.GSE(gse)
-    assert_equal "GPL764", info[:platform]
+    gse = "GSE21029"
+    info = GEO::SOFT.GSE(gse, "/tmp/gse")
+    assert_equal "GPL570", info[:platform]
   end
 
 
@@ -98,7 +98,5 @@ class TestClass < Test::Unit::TestCase
 
     assert GEO[dataset].comparison[GEO.comparison_name field, condition, control].produce.exists?
   end
-
-
 end
 

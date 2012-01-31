@@ -13,6 +13,14 @@ rule /^(GDS\d+)\/?(values|info\.yaml)?$/ do |t|
   GEO::SOFT.GDS(dataset, file.nil? ? t.name : File.dirname(t.name))
 end
 
+rule /^(GSE\d+)\/?(values|info\.yaml)?$/ do |t|
+  t.name =~ /^(GSE\d+)\/?(values|info\.yaml)?/
+  series = $1
+  file = $2
+  GEO::SOFT.GSE(series, file.nil? ? t.name : File.dirname(t.name))
+end
+
+
 rule /^(GDS\d+)\/comparison\/(.*)$/ do |t|
   t.name =~ /^(GDS\d+)\/comparison\/(.*)/
   dataset = $1

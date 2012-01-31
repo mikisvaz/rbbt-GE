@@ -58,20 +58,27 @@ module GEO
     GSE_URL="ftp://ftp.ncbi.nih.gov/pub/geo/DATA/SOFT/by_series/#SERIES#/#SERIES#_family.soft.gz"
 
     GSE_INFO = {
+      :DELIMITER        => "\\^PLATFORM",
       :title         => "!Series_title",
       :channel_count => "!Sample_channel_count",
       :value_type    => "!Series_value_type",
       :platform      => "!Series_platform_id",
       :description   => "!Series_summary*",      # Join with \n 
     }
-    
+ 
+    GSE_SAMPLE_INFO = {
+      :DELIMITER        => "\\^SAMPLE",
+      :title         => "!Sample_title",
+      :accession         => "!Sample_geo_accession",
+      :channel_count => "!Sample_channel_count",
+    }
+   
     GDS_INFO = {
-      :DELIMITER        => "\\^SUBSET",
-      :value_type       => "!dataset_value_type",
-      :channel_count    => "!dataset_channel_count",
-      :platform         => "!dataset_platform",
-      :reference_series => "!dataset_reference_series",
-      :description      => "!dataset_description",
+      :DELIMITER        => "\\^SUBSET|!sample_table_begin",
+      :title         => "!Sample_title",
+      :accession         => "!Sample_geo_accession",
+      :channel_count    => "!Sample_channel_count",
+      :platform         => "!Sample_platform_id",
     }
 
     GDS_SUBSET_INFO = {
@@ -250,6 +257,64 @@ module GEO
 
       Open.write(value_file, values.slice(samples).to_s(:sort, true))
       Open.write(info_file, info.to_yaml)
+
+      info
+    end
+
+
+
+    def self.series_samples(stream)
+      text = stream.read
+
+      values = nil
+
+      sample_info = {}
+      
+      samples = []
+      text.split(/\^SAMPLE/).each do |chunk|
+        info = get_info(chunk, GSE_SAMPLE_INFO)
+        sample = info[:accession]
+        next if sample.nil?
+
+        samples << sample
+
+        sample_values = TSV.open(StringIO.new(chunk.match(/!sample_table_begin(.*)!sample_table_end/msi)[0].strip), :type => :list, :header_hash => '')
+        sample_values.fields = [sample]
+
+        if values.nil?
+          values = sample_values
+        else
+          values.attach sample_values
+        end
+        sample_info[sample] = info
+      end
+
+      [values, sample_info]
+    end
+
+    def self.GSE(series, directory)
+      FileUtils.mkdir_p directory unless File.exists? directory
+
+      value_file = File.join(directory, 'values') 
+      info_file = File.join(directory, 'info.yaml') 
+
+      stream = Open.open(GSE_URL.gsub('#SERIES#', series), :nocache => true)
+
+      info = parse_header(stream, GSE_INFO)
+      info[:value_file]      = value_file
+      info[:data_directory] = directory
+
+      Log.medium "Producing values file for #{ series }"
+      values, sample_info = series_samples(stream)
+
+      key_field = TSV.parse_header(GEO[info[:platform]]['codes'].open).key_field
+      values.key_field = key_field
+
+      Open.write(value_file, values.to_s)
+      Open.write(info_file, info.to_yaml)
+
+      info[:channel_count] ||= sample_info.values.first[:channel_count]
+      info[:value_type] ||= sample_info.values.first[:value_type]
 
       info
     end
