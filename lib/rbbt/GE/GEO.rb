@@ -74,11 +74,12 @@ module GEO
     }
    
     GDS_INFO = {
-      :DELIMITER        => "\\^SUBSET|!sample_table_begin",
-      :title         => "!Sample_title",
-      :accession         => "!Sample_geo_accession",
-      :channel_count    => "!Sample_channel_count",
-      :platform         => "!Sample_platform_id",
+      :DELIMITER        => "\\^SUBSET",
+      :value_type       => "!dataset_value_type",
+      :channel_count    => "!dataset_channel_count",
+      :platform         => "!dataset_platform",
+      :reference_series => "!dataset_reference_series",
+      :description      => "!dataset_description"
     }
 
     GDS_SUBSET_INFO = {
