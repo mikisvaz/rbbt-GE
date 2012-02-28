@@ -55,10 +55,24 @@ rbbt.GE.process.limma.twoside <- function(expr, subset.main, subset.contrast){
 }
 
 
+rbbt.GE.guess.log2 <- function(m, two.channel){
+    if (two.channel){
+        return (sum(m < 0, na.rm = TRUE) == 0);
+    }else{
+        return (max(m, na.rm = TRUE) > 100);
+    }
+}
 
-rbbt.GE.process <- function(file, main, contrast = NULL, log2 = FALSE, outfile = NULL, key.field = NULL){
+
+
+rbbt.GE.process <- function(file, main, contrast = NULL, log2 = FALSE, outfile = NULL, key.field = NULL, two.channel = NULL){
     data = rbbt.tsv(file);
     ids = rownames(data);
+
+    if (is.null(log2)){
+      print(str(data));
+      log2 = rbbt.GE.guess.log2(data, two.channel)
+    }
 
     if (log2){
        data = log2(data);
@@ -103,6 +117,7 @@ rbbt.GE.process <- function(file, main, contrast = NULL, log2 = FALSE, outfile =
 
     if (! is.null(limma)){
        result = data.frame(ratio = ratio[ids], t.values = limma$t[ids], p.values = limma$p.values[ids])
+       result["adjusted.p.values"] = p.adjust(result$p.values, "fdr")
     }else{
        result = data.frame(ratio = ratio)
     }

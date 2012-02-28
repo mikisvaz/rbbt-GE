@@ -279,7 +279,7 @@ module GEO
 
         samples << sample
 
-        sample_values = TSV.open(StringIO.new(chunk.match(/!sample_table_begin(.*)!sample_table_end/msi)[0].strip), :type => :list, :header_hash => '')
+        sample_values = TSV.open(StringIO.new(chunk.match(/!sample_table_begin\n(.*)\n!sample_table_end/msi)[1].strip), :type => :list, :header_hash => '')
         sample_values.fields = [sample]
 
         if values.nil?
@@ -311,11 +311,13 @@ module GEO
       key_field = TSV.parse_header(GEO[info[:platform]]['codes'].open).key_field
       values.key_field = key_field
 
-      Open.write(value_file, values.to_s)
-      Open.write(info_file, info.to_yaml)
-
+      info[:sample_info] ||= sample_info
       info[:channel_count] ||= sample_info.values.first[:channel_count]
       info[:value_type] ||= sample_info.values.first[:value_type]
+
+
+      Open.write(value_file, values.to_s)
+      Open.write(info_file, info.to_yaml)
 
       info
     end
@@ -347,3 +349,4 @@ module GEO
     GE.analyze(value_file, condition_samples, control_samples, log2, path, format)
   end
 end
+

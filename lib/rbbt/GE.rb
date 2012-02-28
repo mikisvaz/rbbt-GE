@@ -31,9 +31,9 @@ module GE
     end
   end
 
-  def self.analyze(datafile,  main, contrast = nil, log2 = false, outfile = nil, key_field = nil)
+  def self.analyze(datafile,  main, contrast = nil, log2 = false, outfile = nil, key_field = nil, two_channel = nil)
     FileUtils.mkdir_p File.dirname(outfile) unless outfile.nil? or File.exists? File.dirname(outfile)
-    GE.run_R("rbbt.GE.process(#{ r_format datafile }, main = #{r_format(main, :strings => true)}, contrast = #{r_format(contrast, :strings => true)}, log2=#{ r_format log2 }, outfile = #{r_format outfile}, key.field = #{r_format key_field})")
+    GE.run_R("rbbt.GE.process(#{ r_format datafile }, main = #{r_format(main, :strings => true)}, contrast = #{r_format(contrast, :strings => true)}, log2=#{ r_format log2 }, outfile = #{r_format outfile}, key.field = #{r_format key_field}, two.channel = #{r_format two_channel})")
   end
 end
 
