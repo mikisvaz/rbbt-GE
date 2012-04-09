@@ -161,9 +161,14 @@ module GEO
           values = CMD.cmd("cat #{ codefile }|cut -f #{ i + 1 }| tr '|' '\\n'|grep [[:alpha:]]|sort -u").read.split("\n").reject{|code| code.empty?}
 
           new_field, count =  Organism.guess_id(organism, values)
-          field_counts[new_field] = count
+          new_field ||= field
+          new_field = "UNKNOWN(#{new_field})" unless count > (num_codes > 20000 ? 20000 : num_codes).to_f * 0.5
+
           Log.debug "Original field: #{ field }. New: #{new_field}. Count: #{ count }/#{num_codes}"
-          new_fields << (count > (num_codes > 20000 ? 20000 : num_codes).to_f * 0.5 ? new_field : "UNKNOWN(#{ field })")
+          new_fields << new_field
+
+          field_counts[new_field] = count
+
           if count > best_count
             best = new_field
             best_count = count
