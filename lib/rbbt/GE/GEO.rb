@@ -150,7 +150,7 @@ module GEO
     end
 
     def self.guess_id(organism, codes)
-      num_codes = codes.size
+      num_codes = codes.length
       best = nil
       best_count = 0
       new_fields = []
@@ -162,9 +162,10 @@ module GEO
 
           new_field, count =  Organism.guess_id(organism, values)
           new_field ||= field
-          new_field = "UNKNOWN(#{new_field})" unless count > (num_codes > 20000 ? 20000 : num_codes).to_f * 0.5
+          count ||= 0
+          new_field = "UNKNOWN(#{new_field})" unless count > (num_codes > 20000 ? 20000 : num_codes).to_f * 0.2 and count > values.uniq.length * 0.5
 
-          Log.debug "Original field: #{ field }. New: #{new_field}. Count: #{ count }/#{num_codes}"
+          Log.debug "Original field: #{ field }. New: #{new_field}. Count: #{ count }/#{num_codes}/#{values.uniq.length}"
           new_fields << new_field
 
           field_counts[new_field] = count
@@ -190,7 +191,8 @@ module GEO
       code_file = File.join(directory, 'codes') 
       info_file = File.join(directory, 'info.yaml') 
 
-      stream = Open.open(GPL_URL.gsub('#PLATFORM#', platform), :nocache => true, :pipe => true)
+      # Fix platforms with the '.\d' extension (eg. NM_020527.1)
+      stream = CMD.cmd('sed \'s/\.[[:digit:]]\+\(\t\|$\)/\1/g;s/ *\/\/[^\t]*//g\'', :in =>  Open.open(GPL_URL.gsub('#PLATFORM#', platform), :nocache => true), :pipe => true)
 
       info = parse_header(stream, GPL_INFO)
       info[:code_file]      = code_file
