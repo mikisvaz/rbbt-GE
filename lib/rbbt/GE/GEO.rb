@@ -1,3 +1,4 @@
+# encoding: utf-8
 require 'rbbt-util'
 require 'rbbt/GE'
 require 'rbbt/sources/organism'
@@ -286,7 +287,9 @@ module GEO
 
         samples << sample
 
-        sample_values = TSV.open(StringIO.new(chunk.match(/!sample_table_begin\n(.*)\n!sample_table_end/msi)[1].strip), :type => :list, :header_hash => '')
+        chunk = chunk.encode "UTF-8"
+        chunk = Misc.fixutf8 chunk
+        sample_values = TSV.open(StringIO.new(chunk.match(/!sample_table_begin\n(.*)\n!sample_table_end/mi)[1].strip), :type => :list, :header_hash => '')
         sample_values.fields = [sample]
 
         if values.nil?
