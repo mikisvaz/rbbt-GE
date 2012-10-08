@@ -76,6 +76,10 @@ rbbt.GE.process <- function(file, main, contrast = NULL, log2 = FALSE, outfile =
 
     if (log2){
        data = log2(data);
+       min = min(data[data != -Inf])
+       data[data == -Inf] = min
+       print(summary(data));
+       return
     }
 
     if (is.null(contrast)){

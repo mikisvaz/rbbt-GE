@@ -6,6 +6,26 @@ rule /^(GPL\d+)\/?(codes|info\.yaml)?$/ do |t|
   GEO::SOFT.GPL(platform, file.nil? ? t.name : File.dirname(t.name))
 end
 
+rule /^(GDS\d+)\/samples$/ => [proc{|t| t.sub('samples', 'info.yaml')}, proc{|t| t.sub('samples', 'values')} ] do |t|
+  info = YAML.load(Open.open(t.prerequisites.first))
+
+  subsets = info[:subsets]
+  fields = subsets.keys
+
+  all_samples = TSV::Parser.new(Open.open(t.prerequisites.last)).fields
+  samples = TSV.setup(all_samples, :key_field => "Sample", :fields => [], :type => :list)
+
+  fields.each do |field|
+    assignments = subsets[field]
+
+    samples = samples.add_field field do |sample, v|
+      assignments.select{|value, list| list.include? sample}.first.first
+    end
+  end
+  
+  Open.write(t.name, samples.to_s)
+end
+
 rule /^(GDS\d+)\/?(values|info\.yaml)?$/ do |t|
   t.name =~ /^(GDS\d+)\/?(values|info\.yaml)?/
   dataset = $1
