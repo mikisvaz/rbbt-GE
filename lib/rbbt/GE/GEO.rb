@@ -10,7 +10,7 @@ module GEO
   self.pkgdir = "geo"
   self.subdir = "arrays"
 
-  GEO.claim GEO.root.find(:user), :rake, Rbbt.share.install.GEO.Rakefile.find(:lib)
+  GEO.claim GEO.root, :rake, Rbbt.share.install.GEO.Rakefile.find(:lib)
 
   def self.comparison_name(field, condition, control)
     condition = condition * " AND " if Array === condition
