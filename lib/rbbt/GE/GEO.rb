@@ -142,6 +142,7 @@ module GEO
     def self.parse_header(stream, info)
       header = ""
       while line = stream.readline
+        line = Misc.fixutf8 line
         header << line
         break if line =~ /^#{info[:DELIMITER]}/i
         raise "Delimiter not found" if stream.eof?
