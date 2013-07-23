@@ -3,6 +3,35 @@ library(limma)
 #########################################################################
 # Model processing 
 
+rbbt.GE.barcode <- function(matrix_file, output_file){
+  data = rbbt.tsv(matrix_file)
+  data.mean = rowMeans(data, na.rm=T)
+  data.sd = apply(data, 1, sd, na.rm=T)
+  data.threshold = as.matrix(data.mean) + 3 * as.matrix(data.sd)
+  rm(data.mean)
+  rm(data.sd)
+
+  file.barcode = file(output_file, 'w')
+
+  cat("#Ensembl Gene ID", file = file.barcode)
+  cat("\t", file = file.barcode)
+  cat(colnames(data), file = file.barcode, sep="\t")
+  cat("\n", file = file.barcode)
+     
+  for (gene in rownames(data)){
+    barcode = (data[gene,] - data.threshold) > 0
+
+    cat(gene, file = file.barcode)
+    cat("\t", file = file.barcode)
+    cat(barcode, file = file.barcode, sep = "\t")
+    cat("\n", file = file.barcode)
+  }
+  close(file.barcode)
+}
+
+#########################################################################
+# Model processing 
+
 # Ratio
 rbbt.GE.process.ratio.oneside <- function(expr){
     ratio = apply(expr, 1 ,function(x){mean(x, na.rm = TRUE)})
@@ -529,6 +558,4 @@ MA.load <- function(prefix, orders = TRUE, logratios = TRUE, t = TRUE, p.values 
 
 
     return(data);
-
-
 }
