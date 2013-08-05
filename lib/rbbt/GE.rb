@@ -36,9 +36,9 @@ module GE
     GE.run_R("rbbt.GE.process(#{ r_format datafile }, main = #{r_format(main, :strings => true)}, contrast = #{r_format(contrast, :strings => true)}, log2=#{ r_format log2 }, outfile = #{r_format outfile}, key.field = #{r_format key_field}, two.channel = #{r_format two_channel})")
   end
 
-  def self.barcode(datafile, outfile)
+  def self.barcode(datafile, outfile, factor = 2)
     FileUtils.mkdir_p File.dirname(outfile) unless outfile.nil? or File.exists? File.dirname(outfile)
-    GE.run_R("rbbt.GE.barcode(#{ r_format datafile }, #{ r_format outfile })")
+    GE.run_R("rbbt.GE.barcode(#{ r_format datafile }, #{ r_format outfile }, #{ r_format factor })")
   end
 
 end
