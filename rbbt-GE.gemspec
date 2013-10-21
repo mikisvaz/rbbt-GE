@@ -5,11 +5,11 @@
 
 Gem::Specification.new do |s|
   s.name = "rbbt-GE"
-  s.version = "1.0.0"
+  s.version = "1.1.0"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Miguel Vazquez"]
-  s.date = "2012-12-21"
+  s.date = "2013-10-21"
   s.description = "Gene Expression in RBBT"
   s.email = "miguel.vazquez@cnio.es"
   s.extra_rdoc_files = [
@@ -24,12 +24,12 @@ Gem::Specification.new do |s|
   ]
   s.homepage = "http://github.com/mikisvaz/rbbt-GE"
   s.require_paths = ["lib"]
-  s.rubygems_version = "1.8.24"
+  s.rubygems_version = "2.0.3"
   s.summary = "Gene Expression in RBBT"
-  s.test_files = ["test/test_helper.rb", "test/rbbt/GE/test_GEO.rb"]
+  s.test_files = ["test/rbbt/GE/test_GEO.rb", "test/test_helper.rb"]
 
   if s.respond_to? :specification_version then
-    s.specification_version = 3
+    s.specification_version = 4
 
     if Gem::Version.new(Gem::VERSION) >= Gem::Version.new('1.2.0') then
       s.add_runtime_dependency(%q<rbbt-util>, [">= 0"])
