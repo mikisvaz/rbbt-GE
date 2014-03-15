@@ -197,6 +197,7 @@ module GEO
       stream = CMD.cmd('sed \'s/\.[[:digit:]]\+\(\t\|$\)/\1/g;s/ *\/\/[^\t]*//g\'', :in =>  Open.open(GPL_URL.gsub('#PLATFORM#', platform), :nocache => true), :pipe => true)
 
       info = parse_header(stream, GPL_INFO)
+
       info[:code_file]      = code_file
       info[:data_directory] = directory
 
@@ -224,7 +225,7 @@ module GEO
 
     def self.dataset_subsets(stream)
       text = ""
-      while not (line = stream.gets) =~ /!dataset_table_begin/
+      while not (line = Misc.fixutf8(stream.gets)) =~ /!dataset_table_begin/
         text << line
       end
 
@@ -246,7 +247,7 @@ module GEO
 
     def self.GDS(dataset, directory)
       FileUtils.mkdir_p directory unless File.exists? directory
-
+      
       value_file = File.join(directory, 'values') 
       info_file = File.join(directory, 'info.yaml') 
 
@@ -274,7 +275,7 @@ module GEO
 
 
     def self.series_samples(stream)
-      text = stream.read
+      text = Misc.fixutf8(stream.read)
 
       values = nil
 

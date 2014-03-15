@@ -93,14 +93,12 @@ rbbt.GE.guess.log2 <- function(m, two.channel){
     }
 }
 
-
-
 rbbt.GE.process <- function(file, main, contrast = NULL, log2 = FALSE, outfile = NULL, key.field = NULL, two.channel = NULL){
     data = rbbt.tsv(file);
     ids = rownames(data);
+    if (is.null(key.field)){ key.field = "ID" }
 
     if (is.null(log2)){
-      print(str(data));
       log2 = rbbt.GE.guess.log2(data, two.channel)
     }
 
@@ -108,7 +106,6 @@ rbbt.GE.process <- function(file, main, contrast = NULL, log2 = FALSE, outfile =
        data = log2(data);
        min = min(data[data != -Inf])
        data[data == -Inf] = min
-       print(summary(data));
        return
     }
 
@@ -297,8 +294,8 @@ MA.limma.two_channel <- function(m, conditions, main){
              fit$p.value[sign] =  - fit$p.value[sign];
              return(list(t= fit$t, p.values= fit$p.value));
      }, error=function(x){
-             print("Exception caught in eBayes");
-             print(x);
+             print("Exception caught in eBayes", file=stderr);
+             print(x, file=stderr);
      })
 
     return(NULL);
@@ -323,8 +320,8 @@ MA.limma.contrast <- function(m, conditions, main, contrast){
              fit$p.value[sign,2] = - fit$p.value[sign,2] 
              return(list(t= fit$t[,2], p.values= fit$p.value[,2] ));
     }, error=function(x){
-             print("Exception caught in eBayes");
-             print(x);
+             print("Exception caught in eBayes", file=stderr);
+             print(x, file=stderr);
     })
 
     return(NULL);

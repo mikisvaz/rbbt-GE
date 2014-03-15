@@ -6,7 +6,7 @@ module GE
 
   def self.run_R(command)
     cmd = "\nsource('#{MA}');\n" << command
-    R.run(cmd, :monitor => true)
+    R.run(cmd, :stderr => true)
   end
 
   def self.r_format(list, options = {})

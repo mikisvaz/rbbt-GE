@@ -30,14 +30,14 @@ rule /^(GDS\d+)\/?(values|info\.yaml)?$/ do |t|
   t.name =~ /^(GDS\d+)\/?(values|info\.yaml)?/
   dataset = $1
   file = $2
-  GEO::SOFT.GDS(dataset, file.nil? ? t.name : File.dirname(t.name))
+  GEO::SOFT.GDS(dataset, file.nil? ? t.name : File.dirname(File.expand_path(t.name)))
 end
 
 rule /^(GSE\d+)\/?(values|info\.yaml)?$/ do |t|
   t.name =~ /^(GSE\d+)\/?(values|info\.yaml)?/
   series = $1
   file = $2
-  GEO::SOFT.GSE(series, file.nil? ? t.name : File.dirname(t.name))
+  GEO::SOFT.GSE(series, file.nil? ? t.name : File.dirname(File.expand_path(t.name)))
 end
 
 
